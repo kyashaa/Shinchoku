@@ -1,0 +1,40 @@
+name: Build data.json from entries
+on:
+  push:
+    branches: [main]
+    paths:
+      - "entries/**"
+      - "scripts/build_data_json.py"
+      - ".github/workflows/build-data.yml"
+  workflow_dispatch: {} # 手動実行も可
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build data.json
+        run: python scripts/build-data.py
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain data/data.json)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/data.json
+            git commit -m "chore(data): update data.json"
+            git push
+          else
+            echo "No changes in data/data.json"
+          fi
