@@ -1,4 +1,4 @@
-// Minimal SVG Heatmap for data/data.json  {"YYYY-MM-DD": number}
+// Minimal SVG Heatmap + Click-to-view entries/YYYY-MM-DD.md
 (function () {
   const DAY = 86400000;
   const COLORS = getColors();
@@ -32,7 +32,7 @@
     const data = new Map(Object.entries(obj).map(([k,v])=>[k, Number(v)||0]));
     if (data.size === 0){ el.textContent='データが空です'; return; }
 
-    // 年の決定（最小の年）
+    // 表示する年（最小の年）
     const years = [...data.keys()].map(k=>+k.slice(0,4));
     const year = Math.min(...years);
 
@@ -90,22 +90,105 @@
       const col = Math.floor((startSun(t)-gridStart)/(DAY*7));
       const row = t.getDay();
       const x = LEFT + col*(CELL+GAP), y = TOP + row*(CELL+GAP);
-      const v = data.get(fmt(t)) || 0;
+      const dateStr = fmt(t);
+      const v = data.get(dateStr) || 0;
+
       const rect = document.createElementNS(NS,'rect');
       rect.setAttribute('x',x); rect.setAttribute('y',y);
       rect.setAttribute('width',CELL); rect.setAttribute('height',CELL);
       rect.setAttribute('rx',R); rect.setAttribute('fill', COLORS[level(v,b)]);
-      rect.setAttribute('title', `${fmt(t)} : ${v}`);
+      rect.setAttribute('title', `${dateStr} : ${v}`);
+      rect.dataset.date = dateStr;
+      rect.style.cursor = 'pointer';
+
+      rect.addEventListener('click', (ev)=>{
+        ev.preventDefault();
+        openEntry(dateStr);
+      });
+
       g.appendChild(rect);
     }
     svg.appendChild(g);
 
-    // レジェンド（簡易）
+    // レジェンド
     const legend = document.createElement('div');
     legend.style.cssText='display:flex;gap:6px;align-items:center;margin:8px 0;font-size:12px;color:#94a3b8';
     legend.innerHTML = `レジェンド:` +
       COLORS.map(c=>`<span style="width:12px;height:12px;border-radius:3px;display:inline-block;background:${c};margin-left:6px"></span>`).join('');
     el.innerHTML=''; el.appendChild(legend); el.appendChild(svg);
+
+    // URL ハッシュで直接開く（例: #2025-08-28）
+    if (location.hash && /^\#\d{4}-\d{2}-\d{2}$/.test(location.hash)) {
+      const h = location.hash.slice(1);
+      openEntry(h);
+    }
+  }
+
+  // YAML front-matter を剥がす
+  function stripFrontMatter(md){
+    const m = md.match(/^---\s*([\s\S]*?)\s*---\s*/);
+    return m ? md.slice(m[0].length) : md;
+  }
+
+  // 相対リンク/画像の URL を entries/<date>/ 起点に補正
+  function rewriteRelativeUrls(container, basePath){
+    container.querySelectorAll('a[href]').forEach(a=>{
+      const href = a.getAttribute('href');
+      if (!href) return;
+      if (/^[a-z]+:|^\/|^#/.test(href)) return; // 絶対/アンカーはそのまま
+      a.setAttribute('href', basePath + href);
+    });
+    container.querySelectorAll('img[src]').forEach(img=>{
+      const src = img.getAttribute('src');
+      if (!src) return;
+      if (/^[a-z]+:|^\/|^data:/.test(src)) return;
+      img.setAttribute('src', basePath + src);
+    });
+  }
+
+  async function openEntry(dateStr){
+    const box   = document.getElementById('entry-viewer');
+    const title = document.getElementById('entry-title');
+    const body  = document.getElementById('entry-body');
+    const close = document.getElementById('entry-close');
+    if (!box || !title || !body || !close) return;
+
+    title.textContent = dateStr;
+    body.innerHTML = '読み込み中…';
+    box.hidden = false;
+    location.hash = dateStr; // ディープリンク
+
+    const path = `entries/${dateStr}.md`;
+    try{
+      const res = await fetch(path, {cache:'no-cache'});
+      if (!res.ok) throw new Error(res.statusText);
+      let md = await res.text();
+      md = stripFrontMatter(md);
+
+      // Markdown → HTML（marked は <script src="assets/js/marked.min.js"> で読み込み済み）
+      const html = (window.marked ? window.marked.parse(md) : `<pre>${escapeHtml(md)}</pre>`);
+      body.innerHTML = html;
+
+      // 相対 URL を entries/ を起点に補正（同じ日付内の相対パスに対応）
+      rewriteRelativeUrls(body, `entries/`);
+
+    }catch(e){
+      body.textContent = `読み込みに失敗しました: ${path}`;
+    }
+
+    const onEsc = (ev)=>{ if(ev.key==='Escape'){ box.hidden = true; remove(); location.hash=''; } };
+    const onClose = ()=>{ box.hidden = true; remove(); location.hash=''; };
+
+    function remove(){
+      document.removeEventListener('keydown', onEsc);
+      close.removeEventListener('click', onClose);
+    }
+    document.addEventListener('keydown', onEsc);
+    close.addEventListener('click', onClose);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   document.addEventListener('DOMContentLoaded', ()=>{

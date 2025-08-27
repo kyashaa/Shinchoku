@@ -1,3 +1,29 @@
 <!doctype html><meta charset="utf-8"><title>進捗</title>
+
+<h1>Kjashaの進捗マップ</h1>
+
 <div id="heatmap" data-src="data/data.json"></div>
+
+<!-- クリックで MD を表示する領域（右側や下部に好きに置いてOK） -->
+<article id="entry-viewer" hidden>
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+    <h2 id="entry-title" style="margin:0;font-size:1.1rem;"></h2>
+    <button id="entry-close" aria-label="close">×</button>
+  </header>
+  <div id="entry-body" class="markdown-body"></div>
+</article>
+
+
+<!-- ローカルに保存して参照（CDNでなくてもOK） -->
 <script src="assets/js/heatmap-calendar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+  /* 簡易スタイル */
+  #entry-viewer{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin:12px 0;max-width:840px}
+  #entry-close{border:0;background:transparent;font-size:20px;cursor:pointer}
+  /* GitHub 風の最小Markdown体裁（必要なら削除可） */
+  .markdown-body h1,.markdown-body h2,.markdown-body h3{margin:1em 0 .5em}
+  .markdown-body pre{padding:.5em;overflow:auto;background:#0b1020; color:#e5e7eb; border-radius:8px}
+  .markdown-body code{background:#f1f5f9;padding:.15em .35em;border-radius:.35em}
+</style>
