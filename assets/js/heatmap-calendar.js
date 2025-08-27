@@ -84,31 +84,50 @@
     svg.appendChild(wdG);
 
     // セル
-    const g = document.createElementNS(NS,'g');
-    for(let t=gridStart; t<=gridEnd; t=new Date(+t+DAY)){
-      if (t<y1 || t>y2) continue;
-      const col = Math.floor((startSun(t)-gridStart)/(DAY*7));
-      const row = t.getDay();
-      const x = LEFT + col*(CELL+GAP), y = TOP + row*(CELL+GAP);
-      const dateStr = fmt(t);
-      const v = data.get(dateStr) || 0;
+// セル
+const g = document.createElementNS(NS,'g');
+for (let t = gridStart; t <= gridEnd; t = new Date(+t + DAY)) {
+  if (t < y1 || t > y2) continue;
 
-      const rect = document.createElementNS(NS,'rect');
-      rect.setAttribute('x',x); rect.setAttribute('y',y);
-      rect.setAttribute('width',CELL); rect.setAttribute('height',CELL);
-      rect.setAttribute('rx',R); rect.setAttribute('fill', COLORS[level(v,b)]);
-      rect.setAttribute('title', `${dateStr} : ${v}`);
-      rect.dataset.date = dateStr;
-      rect.style.cursor = 'pointer';
+  const col = Math.floor((startSun(t) - gridStart) / (DAY * 7));
+  const row = t.getDay();
+  const x = LEFT + col * (CELL + GAP), y = TOP + row * (CELL + GAP);
+  const dateStr = fmt(t);
 
-      rect.addEventListener('click', (ev)=>{
-        ev.preventDefault();
-        openEntry(dateStr);
-      });
+  // data.json に該当キーがあるかどうかで分岐
+	const hasValue = data.has(dateStr);
+	const v = hasValue ? data.get(dateStr) : null;
 
-      g.appendChild(rect);
-    }
-    svg.appendChild(g);
+	const rect = document.createElementNS(NS, 'rect');
+	rect.setAttribute('x', x);
+	rect.setAttribute('y', y);
+	rect.setAttribute('width', CELL);
+	rect.setAttribute('height', CELL);
+	rect.setAttribute('rx', R);
+
+	if (hasValue) {
+		// 値がある日だけ色分け＆クリック有効
+		rect.setAttribute('fill', COLORS[level(v, b)]);
+		rect.setAttribute('title', `${dateStr} : ${v}`);
+		rect.dataset.date = dateStr;
+		rect.style.cursor = 'pointer';
+
+		rect.addEventListener('click', (ev) => {
+		ev.preventDefault();
+		openEntry(dateStr);
+		});
+	} else {
+		// 値がない日: 黒くしない。白地＋薄い枠、クリック無効
+		rect.setAttribute('fill', '#ffffff00');   // 完全透明にしたいなら '#ffffff00'
+		rect.setAttribute('stroke', '#626366ff'); // ライトグレーの枠
+		rect.setAttribute('title', `${dateStr} : no entry`);
+		// クリックや pointer は付けない
+	}
+
+	g.appendChild(rect);
+	}
+	svg.appendChild(g);
+
 
     // レジェンド
     const legend = document.createElement('div');
